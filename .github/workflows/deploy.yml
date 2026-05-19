@@ -29,18 +29,29 @@ jobs:
         run: |
           echo "Branch: ${{ github.ref_name }}"
           echo "Resolved Environment Name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}"
-          echo "--- SECRETS NAMESPACE (Base64 encoded) ---"
-          echo -n "secrets.GCP_WORKLOAD_IDENTITY_PROVIDER (Base64): "
-          echo -n "$PROVIDER" | base64
-          echo -n "secrets.GCP_SERVICE_ACCOUNT (Base64): "
-          echo -n "$SA" | base64
-          echo "--- VARIABLES NAMESPACE ---"
-          echo "vars.GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'Not defined in vars' }}"
-          echo "vars.GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || 'Not defined in vars' }}"
-          echo "vars.GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'Not defined in vars' }}"
+          echo "--- OIDC AUTHENTICATION ---"
+          echo "GCP_WORKLOAD_IDENTITY_PROVIDER: $PROVIDER"
+          echo "GCP_SERVICE_ACCOUNT: $SA"
+          echo "--- GCP BASE CONFIG ---"
+          echo "GCP_PROJECT_ID: $PROJECT_ID"
+          echo "vars.GCP_REGION: ${{ vars.GCP_REGION }}"
+          echo "vars.GCP_ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO }}"
+          echo "vars.GCP_SERVICE_NAME: ${{ vars.GCP_SERVICE_NAME }}"
+          echo "--- DB & STORAGE CONFIG ---"
+          echo "vars.CLOUD_SQL_INSTANCE: ${{ vars.CLOUD_SQL_INSTANCE }}"
+          echo "vars.GCS_PUBLIC_BUCKET: ${{ vars.GCS_PUBLIC_BUCKET }}"
+          echo "vars.GCS_PRIVATE_BUCKET: ${{ vars.GCS_PRIVATE_BUCKET }}"
+          echo "--- APPLICATION SECRETS ---"
+          echo "secrets.JWT_SECRET_KEY: $JWT_KEY"
+          echo "secrets.DATABASE_URL: $DB_URL"
+          echo "secrets.REDIS_URL: $RD_URL"
         env:
           PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           SA: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          JWT_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          DB_URL: ${{ secrets.DATABASE_URL }}
+          RD_URL: ${{ secrets.REDIS_URL }}
 
       - name: Authenticate with Google Cloud (OIDC)
         id: auth
