@@ -25,6 +25,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Debug Environment and Secrets Setup
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Resolved Environment Name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}"
+          echo "--- SECRETS NAMESPACE ---"
+          echo "Is secrets.GCP_WORKLOAD_IDENTITY_PROVIDER defined? [${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && 'YES' || 'NO' }}]"
+          echo "Is secrets.GCP_SERVICE_ACCOUNT defined? [${{ secrets.GCP_SERVICE_ACCOUNT != '' && 'YES' || 'NO' }}]"
+          echo "--- VARIABLES NAMESPACE ---"
+          echo "vars.GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'Not defined in vars' }}"
+          echo "vars.GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || 'Not defined in vars' }}"
+          echo "vars.GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'Not defined in vars' }}"
+          echo "secrets.GCP_PROJECT_ID: [${{ secrets.GCP_PROJECT_ID != '' && 'YES' || 'NO' }}]"
+
       - name: Authenticate with Google Cloud (OIDC)
         id: auth
         uses: google-github-actions/auth@v2
