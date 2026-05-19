@@ -98,15 +98,26 @@ if ! gcloud iam workload-identity-pools describe "$POOL_NAME" --location="global
 fi
 
 PROVIDER_NAME="github-actions-provider"
+OWNER_NAME=$(echo "$GITHUB_REPO" | cut -d'/' -f1)
+
 if ! gcloud iam workload-identity-pools providers describe "$PROVIDER_NAME" --location="global" --workload-identity-pool="$POOL_NAME" &>/dev/null; then
     gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_NAME" \
         --location="global" \
         --workload-identity-pool="$POOL_NAME" \
         --display-name="GitHub Actions Provider" \
         --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
-        --attribute-condition="assertion.repository == '$GITHUB_REPO'" \
+        --attribute-condition="assertion.repository.startsWith('$OWNER_NAME/')" \
         --issuer-uri="https://token.actions.githubusercontent.com" \
         --quiet
+    echo -e "${GREEN}✓ Workload Identity Provider created to allow repos under '$OWNER_NAME/'!${NC}"
+else
+    echo -e "${BLUE}Workload Identity Provider '$PROVIDER_NAME' already exists. Ensuring attribute condition allows '$OWNER_NAME/'...${NC}"
+    gcloud iam workload-identity-pools providers update-oidc "$PROVIDER_NAME" \
+        --location="global" \
+        --workload-identity-pool="$POOL_NAME" \
+        --attribute-condition="assertion.repository.startsWith('$OWNER_NAME/')" \
+        --quiet
+    echo -e "${GREEN}✓ Workload Identity Provider updated!${NC}"
 fi
 
 gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER_SA_EMAIL" \
