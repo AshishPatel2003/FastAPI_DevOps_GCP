@@ -1,0 +1,39 @@
+[project]
+name = "fastapi-devops-gcp"
+version = "1.0.0"
+description = "Enterprise-grade FastAPI application with CI/CD, PostgreSQL, Redis WebSockets, and GCP Storage"
+authors = [{ name = "Ashish", email = "" }]
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+ignore = ["B008"]  # do not perform function calls in argument defaults (FastAPI Depends)
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["S101"]  # allow asserts in tests
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+env = [
+    "APP_ENV=testing",
+    "DATABASE_URL=sqlite+aiosqlite:///./test.db",
+    "REDIS_URL=redis://localhost:6379",
+    "JWT_SECRET_KEY=test-secret-key-min-32-chars-long-here",
+    "GCS_PUBLIC_BUCKET=test-public",
+    "GCS_PRIVATE_BUCKET=test-private",
+    "GCP_PROJECT_ID=test-project",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:Build"

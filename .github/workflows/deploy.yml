@@ -1,0 +1,87 @@
+name: FastAPI Multi-Environment Deploy to GCP
+
+on:
+  push:
+    branches:
+      - main       # Production Environment
+      - stage      # Staging Environment
+      - develop    # Development Environment
+
+# Permissions required to authenticate with GCP OIDC (Workload Identity Federation)
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build & Deploy FastAPI
+    runs-on: ubuntu-latest
+    
+    # Dynamically bind the environment based on the branch being pushed
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Google Cloud (OIDC)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Docker to Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & Tag Docker Container
+        run: |
+          docker build \
+            -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/fastapi-app:${{ github.sha }} \
+            -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/fastapi-app:${{ github.ref_name }} \
+            .
+
+      - name: Push Container to Artifact Registry
+        run: |
+          docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/fastapi-app:${{ github.sha }}
+          docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/fastapi-app:${{ github.ref_name }}
+
+      - name: Run Alembic Database Migrations
+        # Running migrations via Cloud Run jobs is best practice, but for simplicity
+        # we can run them from the runner if the runner has network access (e.g. via Cloud SQL Auth Proxy).
+        # In a fully restricted environment, you'd trigger a Cloud Run Job here instead.
+        run: |
+          echo "Run migrations task..."
+          # docker run --env-file <(env) ${{ vars.GCP_REGION }}-docker.pkg.dev/.../fastapi-app:${{ github.sha }} alembic upgrade head
+          echo "Note: Configure Cloud SQL Auth Proxy in GitHub Actions to run DB migrations automatically"
+
+      - name: Deploy Revision to Google Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ vars.GCP_SERVICE_NAME }}
+          region: ${{ vars.GCP_REGION }}
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/fastapi-app:${{ github.sha }}
+          flags: |
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=5
+            --add-cloudsql-instances=${{ vars.CLOUD_SQL_INSTANCE }}
+            --set-env-vars=APP_ENV=${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
+            --set-env-vars=APP_VERSION=${{ github.sha }}
+          env_vars: |
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            GCP_REGION=${{ vars.GCP_REGION }}
+            GCS_PUBLIC_BUCKET=${{ vars.GCS_PUBLIC_BUCKET }}
+            GCS_PRIVATE_BUCKET=${{ vars.GCS_PRIVATE_BUCKET }}
+            CLOUD_SQL_INSTANCE=${{ vars.CLOUD_SQL_INSTANCE }}
+          env_vars_update_strategy: merge
+          secrets: |
+            JWT_SECRET_KEY=JWT_SECRET_KEY:latest
+            DATABASE_URL=DATABASE_URL:latest
+            REDIS_URL=REDIS_URL:latest
