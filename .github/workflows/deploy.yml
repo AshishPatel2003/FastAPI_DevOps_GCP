@@ -100,14 +100,14 @@ jobs:
             --min-instances=0
             --max-instances=5
             --add-cloudsql-instances=${{ vars.CLOUD_SQL_INSTANCE }}
-            --set-env-vars=APP_ENV=${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
-            --set-env-vars=APP_VERSION=${{ github.sha }}
           env_vars: |
             GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
             GCP_REGION=${{ vars.GCP_REGION }}
             GCS_PUBLIC_BUCKET=${{ vars.GCS_PUBLIC_BUCKET }}
             GCS_PRIVATE_BUCKET=${{ vars.GCS_PRIVATE_BUCKET }}
             CLOUD_SQL_INSTANCE=${{ vars.CLOUD_SQL_INSTANCE }}
+            APP_ENV=${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
+            APP_VERSION=${{ github.sha }}
           env_vars_update_strategy: merge
           secrets: |
             JWT_SECRET_KEY=JWT_SECRET_KEY:latest
